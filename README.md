@@ -60,32 +60,61 @@ This split keeps the frontend responsive while moving expensive computation off 
 
 ## Local Development
 
-Create and activate the virtual environment:
+Use Python `3.11.x` on both Windows and macOS for the most reliable experience.
+
+### Create a virtual environment
+
+Windows:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-Install frontend dependencies:
+macOS / Linux:
 
-```powershell
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+```
+
+### Install dependencies
+
+Frontend dependencies:
+
+```bash
 python -m pip install -r requirements.txt
 ```
 
-Install backend dependencies:
+Backend dependencies:
 
-```powershell
+```bash
 python -m pip install -r requirements-api.txt
 ```
 
-### Run backend
+### Platform-specific fallback installers
+
+If you want a single install command per operating system, use these fallback files:
+
+Windows:
 
 ```powershell
+python -m pip install -r requirements-windows.txt
+```
+
+macOS / Linux:
+
+```bash
+python -m pip install -r requirements-macos.txt
+```
+
+### Run backend manually
+
+```bash
 python -m uvicorn live_ingest_api:app --reload
 ```
 
-### Check in browser
+### Check backend docs
 
 Open:
 
@@ -93,17 +122,46 @@ Open:
 http://127.0.0.1:8000/docs
 ```
 
-### Open new terminal
+### Run frontend manually
 
-```powershell
+In a second terminal:
+
+```bash
 python -m streamlit run app.py
 ```
 
-### One-command launcher
+### Cross-platform one-command launcher
+
+This repo now includes a platform-neutral launcher:
+
+```bash
+python run_all.py
+```
+
+Windows-only PowerShell launcher is still available:
 
 ```powershell
-.un_all.ps1
+.
+un_all.ps1
 ```
+
+macOS / Linux shell launcher is also included:
+
+```bash
+bash run_all.sh
+```
+
+## macOS Notes
+
+- Use Python `3.11.x`, not `3.12`, for the most stable package support.
+- Install Apple command-line tools if needed:
+
+```bash
+xcode-select --install
+```
+
+- On Apple Silicon (`M1` / `M2`), some ML packages can be more sensitive than on Windows. The app has been adjusted so runtime startup does not depend on training-only imports as aggressively.
+- The backend and frontend must both be running locally.
 
 ## GitHub Upload Checklist
 
@@ -178,13 +236,13 @@ The frontend will automatically use this backend URL through `src/api_client.py`
 
 To retrain and refresh saved artifacts:
 
-```powershell
+```bash
 python train_model.py
 ```
 
 Optional tuning:
 
-```powershell
+```bash
 python train_model.py --tune --trials 20
 ```
 
@@ -217,7 +275,7 @@ If Streamlit shows a backend connection error:
 
 Install it into the correct environment:
 
-```powershell
+```bash
 python -m pip install -r requirements-api.txt
 ```
 

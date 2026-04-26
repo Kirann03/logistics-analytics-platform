@@ -3,7 +3,7 @@ from pathlib import Path
 import streamlit as st
 
 from src.api_client import ApiError, get_default_dataset, upload_dataset
-from src.common import apply_branding
+from src.common import apply_branding, render_footer
 from src.dashboard import render_dashboard_page
 from src.prediction import render_prediction_page
 
@@ -60,6 +60,8 @@ def main() -> None:
         render_prediction_page(prediction_dataset_ref)
     else:
         render_dashboard_page(default_dataset_ref)
+
+    render_footer()
 
 
 if __name__ == "__main__":

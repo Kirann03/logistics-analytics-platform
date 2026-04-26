@@ -107,3 +107,16 @@ def base_layout(fig: go.Figure, height: int = 430) -> go.Figure:
         zerolinecolor="rgba(148,163,184,0.28)",
     )
     return fig
+
+
+
+def render_footer() -> None:
+    st.markdown(
+        """
+        <div style="margin:2.5rem 0 0.75rem 0; text-align:center; opacity:0.86; font-size:0.95rem; letter-spacing:0.02em; line-height:1.8;">
+            <div>Powered by Aishwarya &amp; Kiran</div>
+            <div style="font-size:0.88rem; opacity:0.82;">&copy; 2026 Aishwarya &amp; Kiran. All rights reserved.</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
