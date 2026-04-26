@@ -18,7 +18,7 @@ except ImportError:  # pragma: no cover - defensive fallback for partial deploym
 st.set_page_config(
     page_title="Logistics Route Efficiency Dashboard",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
 )
 
 
@@ -41,8 +41,6 @@ def main() -> None:
     with st.sidebar:
         st.markdown("## Sections")
         section = st.radio("Choose section", ["Dashboard", "Prediction"], label_visibility="collapsed")
-        st.markdown("## Display")
-        theme_mode = st.selectbox("Theme mode", ["System", "Light", "Dark"], index=0)
         st.markdown("## Dataset")
         uploaded = st.file_uploader(
             "Import CSV / Excel dataset",
@@ -50,7 +48,7 @@ def main() -> None:
             help="Use uploaded files for prediction experiments and scenario testing. The Dashboard remains anchored to the curated project dataset for consistent portfolio analysis.",
         )
 
-    apply_branding(theme_mode)
+    apply_branding()
 
     try:
         default_dataset_ref = get_default_dataset()

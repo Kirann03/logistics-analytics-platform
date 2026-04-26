@@ -15,32 +15,8 @@ THEME_CSS = """
     --shadow: rgba(15, 23, 42, 0.08);
 }
 
-html[data-user-theme="dark"] {
-    --bg: #05070b;
-    --panel: #0b1220;
-    --panel-soft: #111827;
-    --ink: #f8fafc;
-    --muted: #cbd5e1;
-    --accent: #60a5fa;
-    --accent-2: #38bdf8;
-    --line: rgba(96, 165, 250, 0.20);
-    --shadow: rgba(0, 0, 0, 0.36);
-}
-
-html[data-user-theme="light"] {
-    --bg: #f5f7fb;
-    --panel: #ffffff;
-    --panel-soft: #f8fafc;
-    --ink: #050505;
-    --muted: #475569;
-    --accent: #0f62fe;
-    --accent-2: #38bdf8;
-    --line: rgba(15, 98, 254, 0.16);
-    --shadow: rgba(15, 23, 42, 0.08);
-}
-
 @media (prefers-color-scheme: dark) {
-    html:not([data-user-theme="light"]) {
+    :root {
         --bg: #05070b;
         --panel: #0b1220;
         --panel-soft: #111827;
@@ -62,7 +38,7 @@ html[data-user-theme="light"] {
 }
 
 .block-container {
-    padding-top: 1.2rem;
+    padding-top: 1rem;
     padding-bottom: 2rem;
     max-width: 1440px;
 }
@@ -142,7 +118,7 @@ html[data-user-theme="light"] {
 .hero-title {
     color: var(--ink);
     font-family: Georgia, "Palatino Linotype", serif;
-    font-size: 2.6rem;
+    font-size: clamp(2rem, 4vw, 3.4rem);
     line-height: 1.05;
     margin: 0;
 }
@@ -256,6 +232,7 @@ html[data-user-theme="light"] {
 
 .stTabs [data-baseweb="tab-list"] {
     gap: 0.5rem;
+    flex-wrap: wrap;
 }
 
 .stTabs [data-baseweb="tab"] {
@@ -302,29 +279,6 @@ div[data-testid="stTable"] {
 .alert-badge-high { background: #dc2626; }
 .alert-badge-watch { background: #f59e0b; }
 .alert-badge-ok { background: #0f62fe; }
-
-@media (max-width: 1100px) {
-    .hero-title {
-        font-size: 2.15rem;
-    }
-    .block-container {
-        padding-left: 1rem;
-        padding-right: 1rem;
-    }
-}
-
-@media (max-width: 900px) {
-    .hero-title {
-        font-size: 1.85rem;
-    }
-    .section-title {
-        font-size: 1.35rem;
-    }
-    [data-testid="stHorizontalBlock"] {
-        flex-direction: column !important;
-    }
-}
-
 
 .hero-shell-premium {
     position: relative;
@@ -478,14 +432,107 @@ div[data-testid="stTable"] {
     box-shadow: 0 14px 30px var(--shadow);
 }
 
-@media (max-width: 980px) {
-    .premium-band {
-        grid-template-columns: 1fr;
+@media (max-width: 1100px) {
+    .block-container {
+        padding-left: 1rem;
+        padding-right: 1rem;
     }
+}
+
+@media (max-width: 980px) {
+    .premium-band,
     .premium-kpi-row {
         grid-template-columns: 1fr;
     }
 }
+
+@media (max-width: 900px) {
+    .hero-shell,
+    .section-shell,
+    .panel-shell,
+    .metric-shell,
+    .sparkline-shell,
+    .decision-card,
+    .recommendation-card,
+    .cost-card,
+    .premium-story,
+    .premium-highlight,
+    .plot-frame,
+    .table-frame {
+        border-radius: 20px;
+    }
+
+    .hero-shell {
+        padding: 1.2rem;
+    }
+
+    .section-shell,
+    .panel-shell {
+        padding: 1rem;
+    }
+
+    .hero-copy,
+    .section-copy,
+    .panel-copy,
+    .prediction-note,
+    .metric-note,
+    .premium-story-copy,
+    .premium-highlight-copy {
+        font-size: 0.95rem;
+    }
+
+    [data-testid="stHorizontalBlock"] {
+        flex-direction: column !important;
+        gap: 0.85rem !important;
+    }
+}
+
+@media (max-width: 640px) {
+    .block-container {
+        padding-top: 0.75rem;
+        padding-left: 0.7rem;
+        padding-right: 0.7rem;
+        padding-bottom: 1.25rem;
+    }
+
+    .hero-title {
+        font-size: 1.8rem;
+    }
+
+    .section-title {
+        font-size: 1.25rem;
+    }
+
+    .hero-badge,
+    .section-number {
+        font-size: 0.7rem;
+        padding: 0.3rem 0.6rem;
+    }
+
+    .metric-number,
+    .sparkline-number,
+    .decision-value,
+    .cost-value {
+        font-size: 1.45rem;
+    }
+
+    .metric-shell,
+    .sparkline-shell,
+    .decision-card,
+    .recommendation-card {
+        min-height: auto;
+    }
+
+    [data-testid="stSidebar"] {
+        min-width: 18rem !important;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
 h1, h2, h3, h4, h5, h6, p, label, div, span {
     color: inherit;
 }
@@ -493,19 +540,6 @@ h1, h2, h3, h4, h5, h6, p, label, div, span {
 """
 
 
-def apply_branding(theme_mode: str = "System") -> None:
-    theme_value = {"System": "system", "Light": "light", "Dark": "dark"}.get(theme_mode, "system")
+
+def apply_branding() -> None:
     st.markdown(THEME_CSS, unsafe_allow_html=True)
-    st.markdown(
-        f"""
-        <script>
-        const root = window.parent.document.documentElement;
-        if ({theme_value!r} === 'system') {{
-            root.removeAttribute('data-user-theme');
-        }} else {{
-            root.setAttribute('data-user-theme', {theme_value!r});
-        }}
-        </script>
-        """,
-        unsafe_allow_html=True,
-    )
