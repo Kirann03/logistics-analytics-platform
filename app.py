@@ -3,9 +3,16 @@ from pathlib import Path
 import streamlit as st
 
 from src.api_client import ApiError, get_default_dataset, upload_dataset
-from src.common import apply_branding, render_footer
 from src.dashboard import render_dashboard_page
 from src.prediction import render_prediction_page
+
+try:
+    from src.common import apply_branding, render_footer
+except ImportError:  # pragma: no cover - defensive fallback for partial deployments
+    from src.common import apply_branding
+
+    def render_footer() -> None:
+        return None
 
 
 st.set_page_config(
