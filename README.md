@@ -5,7 +5,7 @@ A production-ready logistics analytics platform with a `Streamlit` frontend and 
 ## Architecture
 
 - `Streamlit Cloud`: frontend UI and interactive experience
-- `Render`: backend API, heavy data processing, analytics aggregation, uploaded-dataset normalization, and ML inference
+- `Railway`: backend API, heavy data processing, analytics aggregation, uploaded-dataset normalization, and ML inference
 - `GitHub`: single source repository for both services
 
 This split keeps the frontend responsive while moving expensive computation off the Streamlit runtime.
@@ -51,7 +51,7 @@ This split keeps the frontend responsive while moving expensive computation off 
 
 ## Backend Requirements
 
-`requirements-api.txt` is dedicated to Render and contains the heavier backend dependencies:
+`requirements-api.txt` is dedicated to Railway and contains the heavier backend dependencies:
 
 - FastAPI and request parsing
 - analytics and ML dependencies
@@ -102,8 +102,7 @@ python -m streamlit run app.py
 ### One-command launcher
 
 ```powershell
-.
-un_all.ps1
+.un_all.ps1
 ```
 
 ## GitHub Upload Checklist
@@ -112,33 +111,39 @@ Before pushing the repository:
 
 - confirm `.venv/` is not committed
 - confirm `.streamlit/secrets.toml` is not committed
-- keep `data.xlsx`, `Factories Coordinates.xlsx`, and `Products and Factories Correlation.xlsx` in the repo if the dashboard must run on Render
+- keep `data.xlsx`, `Factories Coordinates.xlsx`, and `Products and Factories Correlation.xlsx` in the repo if the dashboard must run in production
 - make sure `models/` is committed if you want inference without retraining on the server
 
-## Render Deployment
+## Railway Backend Deployment
 
-Deploy the FastAPI backend from this same repository.
+Railway officially supports deploying FastAPI apps from a GitHub repository and using config-as-code with `railway.json`:
+- FastAPI guide: https://docs.railway.com/guides/fastapi
+- Config as code: https://docs.railway.com/config-as-code
+- Variables: https://docs.railway.com/variables
+- Start command: https://docs.railway.com/deployments/start-command
 
-### Option 1: Use `render.yaml`
+### Deploy steps
 
-Render can read the included `render.yaml` and create the backend service with:
+1. Open Railway.
+2. Create a `New Project`.
+3. Choose `Deploy from GitHub repo`.
+4. Select this repository.
+5. Railway will use the included `railway.json`.
+6. After deployment, go to the service networking/settings area and `Generate Domain`.
 
-- build command: `pip install -r requirements-api.txt`
-- start command: `uvicorn live_ingest_api:app --host 0.0.0.0 --port $PORT`
-- health check: `/health`
+### Railway variable
 
-### Required Render Environment Variables
+Set this environment variable in Railway:
 
-- `ALLOWED_ORIGINS`
-  - example: `https://your-frontend-name.streamlit.app`
-  - use a comma-separated list if you want to allow multiple origins
+```text
+ALLOWED_ORIGINS=https://your-streamlit-app.streamlit.app
+```
 
-### Backend Smoke Test
+### Backend smoke test
 
-After deploy, verify:
-
-- `https://your-render-service.onrender.com/health`
-- `https://your-render-service.onrender.com/docs`
+After Railway gives you a domain, verify:
+- `https://your-railway-domain/health`
+- `https://your-railway-domain/docs`
 
 ## Streamlit Cloud Deployment
 
@@ -157,7 +162,7 @@ The repo includes `runtime.txt` pinned to `python-3.11.9` for better deployment 
 Add this secret in Streamlit Cloud:
 
 ```toml
-LOGISTICS_API_URL = "https://your-render-service.onrender.com"
+LOGISTICS_API_URL = "https://your-railway-domain"
 ```
 
 The frontend will automatically use this backend URL through `src/api_client.py`.
@@ -165,9 +170,9 @@ The frontend will automatically use this backend URL through `src/api_client.py`
 ## Important Deployment Notes
 
 - CORS is enabled in the backend for local Streamlit development and Streamlit Cloud domains.
-- If you use a custom Streamlit domain, add it to `ALLOWED_ORIGINS` on Render.
-- Render filesystems are ephemeral, so runtime-generated files like `incoming_shipments.jsonl` are not permanent unless you add persistent storage.
-- If you want uploaded datasets or ingestion logs to survive restarts, move them to object storage or a database.
+- If you use a custom frontend domain, add it to `ALLOWED_ORIGINS` in Railway.
+- Railway gives your service a public URL only after you generate a domain for it.
+- Runtime-generated files like `incoming_shipments.jsonl` are not ideal for permanent storage. If you need persistence across restarts, move them to object storage or a database.
 
 ## Model Training
 
@@ -203,9 +208,10 @@ Key endpoints:
 
 If Streamlit shows a backend connection error:
 
-- make sure the Render backend is running
+- make sure the Railway backend is deployed and running
+- make sure you generated a Railway domain
 - confirm `LOGISTICS_API_URL` is correct in Streamlit Cloud secrets
-- confirm Render `ALLOWED_ORIGINS` includes your Streamlit Cloud URL
+- confirm `ALLOWED_ORIGINS` includes your Streamlit Cloud URL
 
 ### `python-multipart` error on backend
 
