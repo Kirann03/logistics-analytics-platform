@@ -1,0 +1,14 @@
+pandas
+numpy
+openpyxl
+scikit-learn
+catboost
+statsmodels
+prophet
+optuna
+fastapi
+uvicorn
+pydantic
+requests
+python-multipart
+joblib
