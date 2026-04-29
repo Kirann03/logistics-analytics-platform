@@ -192,13 +192,28 @@ def _apply_historical_aggregates(frame: pd.DataFrame, delay_threshold: int) -> p
     enriched["rolling_30_shipment_avg"] = (
         enriched.groupby("route")["lead_time_days"].transform(lambda s: s.shift(1).rolling(30, min_periods=1).mean())
     )
-    enriched["trend_slope"] = enriched["rolling_7_shipment_avg"] - enriched["rolling_30_shipment_avg"]
 
     global_mean = float(enriched["lead_time_days"].mean())
-    enriched["moving_avg_lead_time"] = enriched["moving_avg_lead_time"].fillna(global_mean)
-    enriched["rolling_7_shipment_avg"] = enriched["rolling_7_shipment_avg"].fillna(global_mean)
-    enriched["rolling_30_shipment_avg"] = enriched["rolling_30_shipment_avg"].fillna(global_mean)
-    enriched["trend_slope"] = enriched["trend_slope"].fillna(0.0)
+
+    def _four_level_fill(series: pd.Series, *, state_default: pd.Series | None = None, mode_default: pd.Series | None = None, global_default: float = global_mean) -> pd.Series:
+        filled = series.copy()
+        if state_default is not None:
+            filled = filled.fillna(state_default)
+        if mode_default is not None:
+            filled = filled.fillna(mode_default)
+        return filled.fillna(global_default)
+
+    state_defaults = enriched["state"].map(state_avg)
+    mode_defaults = enriched["ship_mode"].map(ship_mode_avg)
+    delay_state_avg = enriched.groupby("state")["delay_flag"].mean()
+    delay_mode_avg = enriched.groupby("ship_mode")["delay_flag"].mean()
+
+    enriched["route_avg_lead_time"] = _four_level_fill(enriched["route_avg_lead_time"], state_default=state_defaults, mode_default=mode_defaults)
+    enriched["route_delay_rate"] = _four_level_fill(enriched["route_delay_rate"], state_default=enriched["state"].map(delay_state_avg), mode_default=enriched["ship_mode"].map(delay_mode_avg), global_default=float(enriched["delay_flag"].mean()))
+    enriched["moving_avg_lead_time"] = _four_level_fill(enriched["moving_avg_lead_time"], state_default=state_defaults, mode_default=mode_defaults)
+    enriched["rolling_7_shipment_avg"] = _four_level_fill(enriched["rolling_7_shipment_avg"], state_default=state_defaults, mode_default=mode_defaults)
+    enriched["rolling_30_shipment_avg"] = _four_level_fill(enriched["rolling_30_shipment_avg"], state_default=state_defaults, mode_default=mode_defaults)
+    enriched["trend_slope"] = (enriched["rolling_7_shipment_avg"] - enriched["rolling_30_shipment_avg"]).fillna(0.0)
     return enriched
 
 
@@ -207,11 +222,17 @@ def prepare_training_frame(orders: pd.DataFrame, delay_threshold: int | None = N
     frame = frame.drop_duplicates(subset=["order_id"]).copy()
     frame = frame[frame["lead_time_days"].notna()].copy()
     frame = frame[frame["lead_time_days"] >= 0].copy()
-    frame["order_date"] = pd.to_datetime(frame["order_date"], errors="coerce")
-    frame["ship_date"] = pd.to_datetime(frame["ship_date"], errors="coerce")
-    frame = frame.dropna(
-        subset=["region", "state", "ship_mode", "factory", "order_date", "ship_date", "units", "lead_time_days"]
-    ).copy()
+    if "order_date" in frame.columns:
+        frame["order_date"] = pd.to_datetime(frame["order_date"], errors="coerce")
+    if "ship_date" in frame.columns:
+        frame["ship_date"] = pd.to_datetime(frame["ship_date"], errors="coerce")
+    for column in ["region", "state", "factory"]:
+        if column in frame.columns:
+            frame[column] = frame[column].fillna("Unknown")
+    if "units" in frame.columns:
+        frame["units"] = pd.to_numeric(frame["units"], errors="coerce").fillna(1)
+    required_subset = [column for column in ["region", "state", "ship_mode", "factory", "order_date", "ship_date", "units", "lead_time_days"] if column in frame.columns]
+    frame = frame.dropna(subset=required_subset).copy()
 
     threshold = delay_threshold or int(frame["lead_time_days"].quantile(0.75))
     frame = _apply_time_and_shipping_features(frame)
@@ -220,6 +241,8 @@ def prepare_training_frame(orders: pd.DataFrame, delay_threshold: int | None = N
 
 
 def build_feature_frame(inputs: dict) -> pd.DataFrame:
+    if "order_date" not in inputs or not inputs["order_date"]:
+        inputs = {**inputs, "order_date": str(pd.Timestamp.today().date())}
     order_date = pd.to_datetime(inputs["order_date"])
     state_meta = LOCATION_COORDINATES.get(inputs["state"], {})
     dest_lat = state_meta.get("lat")
@@ -288,14 +311,16 @@ def attach_context_features(feature_frame: pd.DataFrame, context_tables: dict[st
     total_rows = int(context_tables["total_rows"])
 
     route_frequency = int(route_frequency_map.get(route, 0))
-    route_avg = float(route_avg_map.get(route, global_mean))
+    state_avg = float(state_avg_map.get(state, global_mean))
+    ship_mode_avg = float(ship_mode_avg_map.get(ship_mode, global_mean))
+    route_avg = float(route_avg_map.get(route, state_avg_map.get(state, ship_mode_avg_map.get(ship_mode, global_mean))))
     frame["route_frequency"] = route_frequency
-    frame["route_frequency_ratio"] = route_frequency / max(total_rows, 1)
+    frame["route_frequency_ratio"] = float(route_frequency_map.get(route, 0)) / max(total_rows, 1)
     frame["route_avg_lead_time"] = route_avg
     frame["route_delay_rate"] = float(route_delay_map.get(route, global_delay_rate))
-    frame["avg_lead_time_state"] = float(state_avg_map.get(state, global_mean))
+    frame["avg_lead_time_state"] = state_avg
     frame["avg_lead_time_region"] = float(region_avg_map.get(region, global_mean))
-    frame["avg_lead_time_ship_mode"] = float(ship_mode_avg_map.get(ship_mode, global_mean))
+    frame["avg_lead_time_ship_mode"] = ship_mode_avg
     frame["avg_lead_time_factory"] = float(factory_avg_map.get(factory, global_mean))
     frame["moving_avg_lead_time"] = frame["route_avg_lead_time"]
     frame["rolling_7_shipment_avg"] = frame["route_avg_lead_time"]

@@ -24,6 +24,7 @@ from src.analytics import (
 )
 from src.alerts import trigger_sla_alerts
 from src.api_client import get_dashboard_overview, records_to_frame
+from src.backend_service import _explain_anomalies
 from src.common import base_layout, render_header, render_metric, render_metric_sparkline, render_section_heading
 
 PRESET_PATH = Path(__file__).resolve().parent.parent / "saved_filters.json"
@@ -492,27 +493,6 @@ def render_alert_system(route_summary: pd.DataFrame, factory_summary: pd.DataFra
                 st.info(result.get("message", "No alert was sent."))
 
 
-def build_anomaly_explainer(anomalies: pd.DataFrame, route_summary: pd.DataFrame, filtered_orders: pd.DataFrame) -> pd.DataFrame:
-    route_context = route_summary[["route_label", "shipments"]].rename(columns={"shipments": "route_shipments"})
-    distance_context = filtered_orders.groupby("route_label", as_index=False).agg(
-        avg_distance=("dest_lat", "count")
-    )
-    explained = anomalies.merge(route_context, on="route_label", how="left")
-    explained = explained.merge(distance_context, on="route_label", how="left")
-
-    reasons = []
-    for _, row in explained.iterrows():
-        parts = []
-        if row.get("lead_time_zscore", 0) >= 2:
-            parts.append("extreme lead-time deviation")
-        if row.get("route_shipments", 9999) <= 5:
-            parts.append("low route frequency")
-        if str(row.get("ship_mode", "")).lower() in {"standard class", "second class"}:
-            parts.append("slower shipping mode")
-        reasons.append(" + ".join(parts) if parts else "combined operational variation")
-    explained["anomaly_reason"] = reasons
-    return explained
-
 
 def render_route_overview(route_summary: pd.DataFrame) -> None:
     render_section_heading(
@@ -825,7 +805,11 @@ def render_drilldown(
 
 
 def render_operational_intelligence(
+    filtered_orders: pd.DataFrame,
     route_summary: pd.DataFrame,
+    region_bottlenecks: pd.DataFrame,
+    state_bottlenecks: pd.DataFrame,
+    ship_mode_summary: pd.DataFrame,
     factory_summary: pd.DataFrame,
     monthly_trend: pd.DataFrame,
     route_concentration: pd.DataFrame,
@@ -858,7 +842,42 @@ def render_operational_intelligence(
         st.markdown("### Recommended Actions")
         for action in actions:
             st.write(f"- {action}")
-        html_report = "<html><body><h1>Executive Summary</h1><ul>" + "".join(f"<li>{item}</li>" for item in actions) + "</ul></body></html>"
+        portfolio_avg_lead_time = filtered_orders["lead_time_days"].mean()
+        fastest_route = route_summary.sort_values("avg_lead_time").iloc[0]
+        slowest_route = route_summary.sort_values("avg_lead_time", ascending=False).iloc[0]
+        top_bottleneck_region = region_bottlenecks.iloc[0]
+        top_delay_state = state_bottlenecks.sort_values("delay_rate", ascending=False).iloc[0]
+        fastest_ship_mode = ship_mode_summary.sort_values("avg_lead_time").iloc[0]
+        total_revenue_at_risk = float(route_summary["revenue_at_risk"].sum()) if "revenue_at_risk" in route_summary.columns else 0.0
+        html_report = f"""
+        <html>
+            <head>
+                <meta charset="utf-8" />
+                <title>Executive Summary</title>
+            </head>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827; padding: 24px;">
+                <h1>Executive Summary</h1>
+                <h2>Portfolio Overview</h2>
+                <p>
+                    The filtered logistics portfolio is currently averaging <strong>{portfolio_avg_lead_time:.1f} days</strong>
+                    in shipping lead time. The fastest route is <strong>{fastest_route['route_label']}</strong>
+                    at <strong>{fastest_route['avg_lead_time']:.1f} days</strong>, while the slowest route is
+                    <strong>{slowest_route['route_label']}</strong> at <strong>{slowest_route['avg_lead_time']:.1f} days</strong>.
+                    The most significant regional bottleneck is <strong>{top_bottleneck_region['region']}</strong>
+                    with an average lead time of <strong>{top_bottleneck_region['avg_lead_time']:.1f} days</strong>
+                    across <strong>{int(top_bottleneck_region['shipments']):,}</strong> shipments. The highest delay pressure is currently
+                    concentrated in <strong>{top_delay_state['state']}</strong> with a delay rate of
+                    <strong>{top_delay_state['delay_rate']:.1%}</strong>. The fastest ship mode in the present view is
+                    <strong>{fastest_ship_mode['ship_mode']}</strong> at <strong>{fastest_ship_mode['avg_lead_time']:.1f} days</strong>.
+                    Estimated revenue currently at risk due to delays is <strong>${total_revenue_at_risk:,.0f}</strong>.
+                </p>
+                <h2>Recommendations</h2>
+                <ul>
+                    {''.join(f'<li>{item}</li>' for item in actions)}
+                </ul>
+            </body>
+        </html>
+        """
         st.download_button("Download Executive Summary HTML", html_report.encode("utf-8"), "executive_summary.html", "text/html", use_container_width=True)
     tabs = st.tabs(["SLA Compliance", "Cost Saving", "Profitability", "Seasonality & Forecast", "Transition Matrix", "Anomaly Watchlist"])
     with tabs[0]:
@@ -928,4 +947,4 @@ def render_dashboard_page(dataset_ref: dict) -> None:
     render_geography(state_summary, region_bottlenecks, state_bottlenecks, filtered_orders)
     render_ship_modes(ship_mode_summary, shipping_category_summary)
     render_drilldown(filtered_orders, route_summary, delay_threshold)
-    render_operational_intelligence(route_summary, factory_summary, monthly_trend, route_concentration, overview["actions"], sla_route, sla_factory, cost_risk, profitability, seasonality, forecast, overview["transition"], anomalies)
+    render_operational_intelligence(filtered_orders, route_summary, region_bottlenecks, state_bottlenecks, ship_mode_summary, factory_summary, monthly_trend, route_concentration, overview["actions"], sla_route, sla_factory, cost_risk, profitability, seasonality, forecast, overview["transition"], anomalies)

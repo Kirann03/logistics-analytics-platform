@@ -5,12 +5,11 @@ import streamlit as st
 from src.api_client import ApiError, get_default_dataset, upload_dataset
 from src.dashboard import render_dashboard_page
 from src.prediction import render_prediction_page
+from src.theme import apply_branding
 
 try:
-    from src.common import apply_branding, render_footer
+    from src.common import render_footer
 except ImportError:  # pragma: no cover - defensive fallback for partial deployments
-    from src.common import apply_branding
-
     def render_footer() -> None:
         return None
 

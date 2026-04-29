@@ -4,7 +4,6 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from src.theme import apply_branding
 
 
 def render_section_heading(number: str, title: str, description: str) -> None:
@@ -114,8 +113,7 @@ def render_footer() -> None:
     st.markdown(
         """
         <div style="margin:2.5rem 0 0.75rem 0; text-align:center; opacity:0.86; font-size:0.95rem; letter-spacing:0.02em; line-height:1.8;">
-            <div>Powered by Aishwarya &amp; Kiran</div>
-            <div style="font-size:0.88rem; opacity:0.82;">&copy; 2026 Aishwarya &amp; Kiran. All rights reserved.</div>
+            <div>&copy; 2026 Unified Mentor. All rights reserved.</div>
         </div>
         """,
         unsafe_allow_html=True,

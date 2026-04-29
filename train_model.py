@@ -8,7 +8,7 @@ from catboost import CatBoostClassifier, CatBoostRegressor
 from sklearn.metrics import mean_absolute_error, roc_auc_score
 from sklearn.model_selection import train_test_split
 
-from src.data import load_data_bundle, load_uploaded_data_bundle
+from src.data import _build_bundle_from_frames, _load_excel, _read_uploaded_frame, load_data_bundle, load_uploaded_data_bundle
 from src.ml_model import (
     CATEGORICAL_FEATURES,
     prepare_model_matrix,
@@ -118,10 +118,25 @@ def main() -> None:
     parser.add_argument("--tune", action="store_true", help="Run Optuna tuning before final training.")
     parser.add_argument("--trials", type=int, default=20, help="Optuna trials when --tune is used.")
     parser.add_argument("--extra", nargs="*", default=None, help="Optional external dataset file paths to try including in training.")
+    parser.add_argument("--data", type=str, default=None, help="Optional CSV or Excel file to use instead of the default data workbook.")
     args = parser.parse_args()
 
     project_root = Path(__file__).resolve().parent
-    bundle = load_data_bundle(project_root)
+    if args.data:
+        data_path = Path(args.data)
+        raw_orders = _read_uploaded_frame(data_path.read_bytes(), data_path.name)
+        factories = _load_excel(project_root / "Factories Coordinates.xlsx")
+        products = _load_excel(project_root / "Products and Factories Correlation.xlsx")
+        reference_bundle = load_data_bundle(project_root)
+        bundle = _build_bundle_from_frames(
+            raw_orders,
+            factories,
+            products,
+            data_source=f"Training dataset ({data_path.name})",
+            reference_orders=reference_bundle.orders,
+        )
+    else:
+        bundle = load_data_bundle(project_root)
     extra_frame, used_files, skipped_files = load_compatible_external_training_data(project_root, args.extra)
 
     training_orders = bundle.orders.copy()

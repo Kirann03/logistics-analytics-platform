@@ -34,8 +34,11 @@ from src.data import DataBundle, load_data_bundle, load_uploaded_data_bundle
 from src.ml_model import (
     load_model_artifacts,
     predict_with_models as run_model_prediction,
+    prepare_training_frame,
     save_model_artifacts,
+    summarize_training_profile,
     train_prediction_models,
+    TrainedPredictionModels,
 )
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -275,6 +278,25 @@ def dashboard_overview(dataset_id: str, filters: dict[str, Any]) -> dict[str, An
     return payload
 
 
+
+
+def _build_context_tables(orders: pd.DataFrame, delay_threshold: int) -> dict:
+    training_frame, _ = prepare_training_frame(orders, delay_threshold=delay_threshold)
+    profile = summarize_training_profile(training_frame)
+    return {
+        "global_mean": float(training_frame["lead_time_days"].mean()),
+        "global_delay_rate": float(training_frame["delay_flag"].mean()),
+        "route_frequency_map": training_frame.groupby("route")["order_id"].count().to_dict(),
+        "route_avg_map": training_frame.groupby("route")["lead_time_days"].mean().to_dict(),
+        "route_delay_map": training_frame.groupby("route")["delay_flag"].mean().to_dict(),
+        "state_avg_map": training_frame.groupby("state")["lead_time_days"].mean().to_dict(),
+        "region_avg_map": training_frame.groupby("region")["lead_time_days"].mean().to_dict(),
+        "ship_mode_avg_map": training_frame.groupby("ship_mode")["lead_time_days"].mean().to_dict(),
+        "factory_avg_map": training_frame.groupby("factory")["lead_time_days"].mean().to_dict(),
+        "total_rows": int(len(training_frame)),
+        "training_profile": profile,
+    }
+
 def _dataset_model(dataset_id: str):
     if dataset_id in _MODEL_CACHE:
         return _MODEL_CACHE[dataset_id]
@@ -291,8 +313,29 @@ def _dataset_model(dataset_id: str):
         _MODEL_CACHE["default"] = default_model
 
     if dataset_id != "default":
-        _MODEL_CACHE[dataset_id] = default_model
-        return default_model
+        bundle = get_bundle(dataset_id)
+        context_tables = _build_context_tables(bundle.orders, default_model.delay_threshold)
+        uploaded_training_frame, _ = prepare_training_frame(bundle.orders, delay_threshold=default_model.delay_threshold)
+        assembled_model = TrainedPredictionModels(
+            regressor=default_model.regressor,
+            lower_regressor=default_model.lower_regressor,
+            upper_regressor=default_model.upper_regressor,
+            classifier=default_model.classifier,
+            delay_threshold=default_model.delay_threshold,
+            metrics=default_model.metrics,
+            feature_importance=default_model.feature_importance,
+            feature_columns=default_model.feature_columns,
+            training_summary={
+                **default_model.training_summary,
+                "rows_used": int(len(uploaded_training_frame)),
+                "delay_rate": float(uploaded_training_frame["delay_flag"].mean()),
+                "feature_columns": default_model.feature_columns,
+                "training_profile": summarize_training_profile(uploaded_training_frame),
+            },
+            context_tables=context_tables,
+        )
+        _MODEL_CACHE[dataset_id] = assembled_model
+        return assembled_model
 
     return default_model
 
