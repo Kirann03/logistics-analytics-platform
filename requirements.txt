@@ -7,3 +7,4 @@ folium
 branca
 requests
 catboost
+joblib
