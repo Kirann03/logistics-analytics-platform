@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from datetime import date
 import json
@@ -136,7 +136,7 @@ def parse_nlp_shipment(text: str, options: dict) -> dict:
         if state.lower() in lower:
             parsed["state"] = state
     for factory in options["factories"]:
-        if factory.lower().replace("???", "'") in lower.replace("???", "'"):
+        if factory.lower().replace("\u2019", "'") in lower.replace("\u2019", "'"):
             parsed["factory"] = factory
     unit_match = re.search(r"(\d+)\s*(units|unit|pcs|pieces)", lower)
     if unit_match:
@@ -262,7 +262,7 @@ def render_model_performance(dataset_id: str) -> None:
     top = st.columns(6)
     cards = [
         ("Lead-Time MAE", f"{metrics['mae']:.1f} days", "Average absolute prediction error on holdout data."),
-        ("Lead-Time R?", f"{metrics['r2']:.2f}", "Explained variance on unseen validation shipments."),
+        ("Lead-Time R²", f"{metrics['r2']:.2f}", "Explained variance on unseen validation shipments."),
         ("Risk Accuracy", f"{metrics['accuracy']:.1%}", "Classifier accuracy on holdout delay labels."),
         ("Risk Precision", f"{metrics['precision']:.1%}", "Share of predicted delays that were truly delayed."),
         ("Risk Recall", f"{metrics['recall']:.1%}", "Ability to catch delayed shipments. Higher is better here."),

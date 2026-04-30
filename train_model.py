@@ -17,20 +17,7 @@ from src.ml_model import (
     train_prediction_models,
 )
 
-DEFAULT_EXTERNAL_FILES = [
-    r"c:\Users\kshan\Downloads\dataset_weather.xlsx",
-    r"c:\Users\kshan\Downloads\dataset_energy.xlsx",
-    r"c:\Users\kshan\Downloads\dataset_iot.xlsx",
-    r"c:\Users\kshan\Downloads\dataset_hr.xlsx",
-    r"c:\Users\kshan\Downloads\dataset_movies.xlsx",
-    r"c:\Users\kshan\Downloads\dataset_traffic.xlsx",
-    r"c:\Users\kshan\Downloads\dataset_sales.xlsx",
-    r"c:\Users\kshan\Downloads\dataset_banking.xlsx",
-    r"c:\Users\kshan\Downloads\dataset_health.xlsx",
-    r"c:\Users\kshan\Downloads\dataset_students.xlsx",
-    r"c:\Users\kshan\Downloads\dataset_ecommerce.xlsx",
-    r"c:\Users\kshan\Downloads\dataset_logistics.xlsx",
-]
+DEFAULT_EXTERNAL_FILES = []
 
 
 def load_compatible_external_training_data(project_root: Path, extra_files: list[str] | None = None) -> tuple[pd.DataFrame, list[str], list[str]]:

@@ -58,3 +58,39 @@ def test_build_recommendation_actions_returns_four_actions():
     actions = build_recommendation_actions(route_summary, state_bottlenecks, factory_summary, ship_mode_summary)
     assert len(actions) == 4
     assert all(isinstance(action, str) and action for action in actions)
+
+
+from src.data import _map_unknown_columns, validate_raw_orders
+
+def test_field_alias_mapping():
+    raw = pd.DataFrame({
+        "transit_days": [5],
+        "service_level": ["Standard Class"],
+        "origin": ["Sugar Shack"],
+        "delivery_zone": ["Pacific"],
+        "destination_state": ["CALIFORNIA"],
+        "quantity_shipped": [3],
+        "order_value": [10.0],
+        "freight_cost": [4.0],
+    })
+    mapped, messages = _map_unknown_columns(raw)
+    assert "lead_time_days" in mapped.columns
+    assert "ship_mode" in mapped.columns
+    assert "factory" in mapped.columns
+    assert len(messages) > 0
+
+def test_validate_raw_orders_rejects_empty_schema():
+    raw = pd.DataFrame({"random_col": [1, 2]})
+    errors, _ = validate_raw_orders(raw)
+    assert len(errors) > 0
+
+def test_validate_raw_orders_accepts_minimal_schema():
+    raw = pd.DataFrame({
+        "order_date": ["2024-01-01"],
+        "region": ["Pacific"],
+        "state": ["CALIFORNIA"],
+        "ship_mode": ["Standard Class"],
+        "units": [2],
+    })
+    errors, _ = validate_raw_orders(raw)
+    assert len(errors) == 0

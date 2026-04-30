@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections import OrderedDict
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -45,7 +46,8 @@ ROOT = Path(__file__).resolve().parent.parent
 MODEL_DIR = ROOT / "models"
 
 _DATASETS: dict[str, DataBundle] = {}
-_DASHBOARD_CACHE: dict[tuple[str, str], dict[str, Any]] = {}
+_DASHBOARD_CACHE: OrderedDict[tuple[str, str], dict[str, Any]] = OrderedDict()
+_DASHBOARD_CACHE_MAX = 32
 _MODEL_CACHE: dict[str, Any] = {}
 
 
@@ -275,6 +277,8 @@ def dashboard_overview(dataset_id: str, filters: dict[str, Any]) -> dict[str, An
         "canada_analytics": dataframe_records(canada_analytics),
     }
     _DASHBOARD_CACHE[cache_key] = payload
+    while len(_DASHBOARD_CACHE) > _DASHBOARD_CACHE_MAX:
+        _DASHBOARD_CACHE.popitem(last=False)
     return payload
 
 
